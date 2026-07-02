@@ -6,7 +6,7 @@ model = YOLO("yolov8n.pt")
 
 while True:
     ret, frame = cap.read()
-    results = model(frame,verbose=False)
+    results = model(frame, classes=[0], verbose=False)
 
     # Check if frame captured correctly
     if not ret:
