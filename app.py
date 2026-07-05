@@ -1,3 +1,4 @@
+import os
 import cv2
 import time
 from ultralytics import YOLO
@@ -7,6 +8,12 @@ model = YOLO("yolov8n.pt")
 
 # Open webcam
 cap = cv2.VideoCapture(0)
+
+# Screenshot Folder (Creates if Not present)
+if not os.path.exists("detections"):
+    os.makedirs("detections")
+first_seen = {}
+saved_ids = set()
 
 while True:
     start_time = time.time()
@@ -28,6 +35,24 @@ while True:
         if confidence > 0.5:
             track_id = int(box.id[0])
             person_count = person_count + 1
+            
+            # Appear hone ke 2 sec baad click karega !! 
+            current_time = time.time()
+            if track_id not in first_seen:
+                first_seen[track_id] = current_time
+            
+            # Ye Image ko save karega ID ko check krke !! 
+            if (current_time - first_seen[track_id] >= 2
+                and track_id not in saved_ids):
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+
+                filename = f"detections/person_{track_id}_{timestamp}.jpg"
+
+                cv2.imwrite(filename, frame)
+
+                saved_ids.add(track_id) # Save id
+
+                print(f"Saved: {filename}")
 
             x1, y1, x2, y2 = map(int, box.xyxy[0])
 
