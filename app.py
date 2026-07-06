@@ -33,6 +33,9 @@ while True:
         confidence = box.conf[0]
 
         if confidence > 0.5:
+
+            if box.id is None or len(box.id) == 0:
+                continue
             track_id = int(box.id[0])
             person_count = person_count + 1
             
@@ -47,8 +50,8 @@ while True:
                 timestamp = time.strftime("%Y%m%d_%H%M%S")
 
                 filename = f"detections/person_{track_id}_{timestamp}.jpg"
-
-                cv2.imwrite(filename, frame)
+                person_crop = frame[y1:y2, x1:x2]
+                cv2.imwrite(filename, person_crop)
 
                 saved_ids.add(track_id) # Save id
 
