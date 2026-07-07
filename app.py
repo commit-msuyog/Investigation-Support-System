@@ -30,15 +30,15 @@ known_names.append("Suyog")
 
 
 
-image2 = face_recognition.load_image_file(
-    "known_faces/shruti.jpeg"
-)
-
-encoding2 = face_recognition.face_encodings(image2)[0]
-
-known_encodings.append(encoding2)
-
-known_names.append("Shruti")
+#image2 = face_recognition.load_image_file(
+#    "known_faces/shruti.jpeg"
+#)
+#
+#encoding2 = face_recognition.face_encodings(image2)[0]
+#
+#known_encodings.append(encoding2)
+#
+#known_names.append("Shruti")
 
 
 
