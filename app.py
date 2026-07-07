@@ -3,13 +3,44 @@ import cv2
 import time
 from ultralytics import YOLO
 
+import face_recognition
+
 # Load YOLO model
 model = YOLO("yolov8n.pt")
 
-# Pre-trained Model
-face_cascade = cv2.CascadeClassifier(
-    "haarcascade_frontalface_default.xml"
+# Pre-trained Model for Face-Detection
+#face_cascade = cv2.CascadeClassifier(
+#    "models/haarcascade_frontalface_default.xml"
+#)
+
+
+
+known_encodings = []
+known_names = []
+
+image1 = face_recognition.load_image_file(
+    "known_faces/suyog.jpeg"
 )
+
+encoding1 = face_recognition.face_encodings(image1)[0]
+
+known_encodings.append(encoding1)
+
+known_names.append("Suyog")
+
+
+
+image2 = face_recognition.load_image_file(
+    "known_faces/shruti.jpeg"
+)
+
+encoding2 = face_recognition.face_encodings(image2)[0]
+
+known_encodings.append(encoding2)
+
+known_names.append("Shruti")
+
+
 
 # Open webcam
 cap = cv2.VideoCapture(0)
@@ -20,39 +51,69 @@ if not os.path.exists("detections"):
 first_seen = {}
 saved_ids = set()
 
+
+frame_count = 0
+
 while True:
+
+    frame_count = frame_count + 1
     start_time = time.time()
     ret, frame = cap.read()
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    faces = face_cascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=8,
-        minSize=(60, 60)
-        )
-
-    for (fx, fy, fw, fh) in faces:
-
-        cv2.rectangle(
-            frame,
-            (fx, fy),
-            (fx + fw, fy + fh),
-            (255, 0, 255),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            "Face",
-            (fx, fy - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 0, 255),
-            2
+    if frame_count % 5 == 0:
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        face_locations = face_recognition.face_locations(rgb_frame)
+    
+        face_encodings = face_recognition.face_encodings(
+            rgb_frame,
+            face_locations
         )
     
+    
+        for face_encoding in face_encodings:
+            matches = face_recognition.compare_faces(
+            known_encodings,
+            face_encoding
+            )
+    
+            name = "Unknown"
+            if True in matches:
+                match_index = matches.index(True)
+                name = known_names[match_index]
+            #print(name)
+    
+    
+    
+        #faces = face_cascade.detectMultiScale(
+        #    gray,
+        #    scaleFactor=1.1,
+        #    minNeighbors=8,
+        #    minSize=(60, 60)
+        #    )
+        #
+        ## Face Detection !! 
+        #for (fx, fy, fw, fh) in faces:
+        #
+        #    cv2.rectangle(
+        #        frame,
+        #        (fx, fy),
+        #        (fx + fw, fy + fh),
+        #        (255, 0, 255),
+        #        2
+        #    )
+    #
+        #    cv2.putText(
+        #        frame,
+        #        "Face",
+        #        (fx, fy - 10),
+        #        cv2.FONT_HERSHEY_SIMPLEX,
+        #        0.7,
+        #        (255, 0, 255),
+        #        2
+        #    )
+        
 
     if not ret:
         print("Failed to capture frame")
