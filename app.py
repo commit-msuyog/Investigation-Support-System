@@ -6,6 +6,11 @@ from ultralytics import YOLO
 # Load YOLO model
 model = YOLO("yolov8n.pt")
 
+# Pre-trained Model
+face_cascade = cv2.CascadeClassifier(
+    "haarcascade_frontalface_default.xml"
+)
+
 # Open webcam
 cap = cv2.VideoCapture(0)
 
@@ -18,6 +23,35 @@ saved_ids = set()
 while True:
     start_time = time.time()
     ret, frame = cap.read()
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    faces = face_cascade.detectMultiScale(
+        gray,
+        scaleFactor=1.1,
+        minNeighbors=8,
+        minSize=(60, 60)
+        )
+
+    for (fx, fy, fw, fh) in faces:
+
+        cv2.rectangle(
+            frame,
+            (fx, fy),
+            (fx + fw, fy + fh),
+            (255, 0, 255),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            "Face",
+            (fx, fy - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 0, 255),
+            2
+        )
     
 
     if not ret:
