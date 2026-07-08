@@ -2,5 +2,5 @@ venv/
 venv311/
 __pycache__\
 *.pyc
-detections\
-known_faces\
+detections/
+known_faces/
