@@ -6,7 +6,7 @@ from ultralytics import YOLO
 import face_recognition
 
 # Load YOLO model
-model = YOLO("yolov8n.pt")
+model = YOLO("models\yolov8n.pt")
 
 # Pre-trained Model for Face-Detection
 #face_cascade = cv2.CascadeClassifier(
@@ -30,20 +30,22 @@ known_names.append("Suyog")
 
 
 
-#image2 = face_recognition.load_image_file(
-#    "known_faces/shruti.jpeg"
-#)
-#
-#encoding2 = face_recognition.face_encodings(image2)[0]
-#
-#known_encodings.append(encoding2)
-#
-#known_names.append("Shruti")
+image2 = face_recognition.load_image_file(
+    "known_faces/shruti.jpeg"
+)
+
+encoding2 = face_recognition.face_encodings(image2)[0]
+
+known_encodings.append(encoding2)
+
+known_names.append("Shruti")
 
 
 
 # Open webcam
 cap = cv2.VideoCapture(0)
+
+
 
 # Screenshot Folder (Creates if Not present)
 if not os.path.exists("detections"):
@@ -56,69 +58,66 @@ frame_count = 0
 
 while True:
 
-    frame_count = frame_count + 1
+    
     start_time = time.time()
     ret, frame = cap.read()
-
-    #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    if frame_count % 5 == 0:
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        face_locations = face_recognition.face_locations(rgb_frame)
-    
-        face_encodings = face_recognition.face_encodings(
-            rgb_frame,
-            face_locations
-        )
-    
-    
-        for face_encoding in face_encodings:
-            matches = face_recognition.compare_faces(
-            known_encodings,
-            face_encoding
-            )
-    
-            name = "Unknown"
-            if True in matches:
-                match_index = matches.index(True)
-                name = known_names[match_index]
-            #print(name)
-    
-    
-    
-        #faces = face_cascade.detectMultiScale(
-        #    gray,
-        #    scaleFactor=1.1,
-        #    minNeighbors=8,
-        #    minSize=(60, 60)
-        #    )
-        #
-        ## Face Detection !! 
-        #for (fx, fy, fw, fh) in faces:
-        #
-        #    cv2.rectangle(
-        #        frame,
-        #        (fx, fy),
-        #        (fx + fw, fy + fh),
-        #        (255, 0, 255),
-        #        2
-        #    )
-    #
-        #    cv2.putText(
-        #        frame,
-        #        "Face",
-        #        (fx, fy - 10),
-        #        cv2.FONT_HERSHEY_SIMPLEX,
-        #        0.7,
-        #        (255, 0, 255),
-        #        2
-        #    )
-        
-
     if not ret:
         print("Failed to capture frame")
         break
 
+    frame_count = frame_count + 1
+
+    #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    #if frame_count % 5 == 0:
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    #cv2.imshow("RGB Frame", rgb_frame)
+    #print(rgb_frame.shape)
+    face_locations = face_recognition.face_locations(
+        rgb_frame,
+        model="hog"
+    )
+    #print(f"Faces detected: {len(face_locations)}")
+
+    face_encodings = face_recognition.face_encodings(
+        rgb_frame,
+        face_locations
+    )
+
+
+    for (top, right, bottom, left), face_encoding in zip(
+        face_locations,
+        face_encodings
+    ):
+    
+        matches = face_recognition.compare_faces(
+        known_encodings,
+        face_encoding
+        )
+
+        name = "Unknown"
+        if True in matches:
+            match_index = matches.index(True)
+            name = known_names[match_index]
+        cv2.rectangle(
+            frame,
+            (left, top),
+            (right, bottom),
+            (255, 0, 255),
+            2
+        )
+        cv2.putText(
+            frame,
+            name,
+            (left, top - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 0, 255),
+            2
+        )
+            #print(name)
+    
     results = model.track(frame, classes=[0], persist = True, verbose=False)
 
     person_count = 0
@@ -132,6 +131,9 @@ while True:
             if box.id is None or len(box.id) == 0:
                 continue
             track_id = int(box.id[0])
+
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+
             person_count = person_count + 1
             
             # Appear hone ke 2 sec baad click karega !! 
@@ -139,7 +141,9 @@ while True:
             if track_id not in first_seen:
                 first_seen[track_id] = current_time
             
-            # Ye Image ko save karega ID ko check krke !! 
+            # Ye Image ko save karega ID ko check krke !!
+
+
             if (current_time - first_seen[track_id] >= 2
                 and track_id not in saved_ids):
                 timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -152,7 +156,7 @@ while True:
 
                 print(f"Saved: {filename}")
 
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
