@@ -1,7 +1,14 @@
-import face_recognition
+import sqlite3
 
-image = face_recognition.load_image_file("known_faces/suyog.jpeg")
+conn = sqlite3.connect("detections.db")
 
-locations = face_recognition.face_locations(image)
+cursor = conn.cursor()
 
-print(locations)
+cursor.execute("SELECT * FROM detections")
+
+rows = cursor.fetchall()
+
+for row in rows:
+    print(row)
+
+conn.close()

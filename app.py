@@ -4,6 +4,8 @@ import time
 from ultralytics import YOLO
 import face_recognition
 
+from database import save_detection
+
 # Load YOLO model with GPU
 model = YOLO("models\yolov8n.pt")
 model.to("cuda")
@@ -184,13 +186,29 @@ while True:
             current_time - first_seen[track_id] >= 2
             and track_id not in saved_ids
         ):
+            file_timestamp = time.strftime('%Y%m%d_%H%M%S')
+            filename = f"detections/person_{track_id}_{file_timestamp}.jpg"
 
-            filename = f"detections/person_{track_id}_{time.strftime('%Y%m%d_%H%M%S')}.jpg"
+
+            detect_time = time.strftime('%Y%m%d_%H%M%S')
 
             cv2.imwrite(
                 filename,
                 frame[y1:y2, x1:x2]
             )
+            if track_id in recognized_tracks:
+                detected_name = recognized_tracks[track_id]["name"]
+            else:
+                detected_name = "Unknown"
+
+            save_detection(
+                track_id=track_id,
+                name=detected_name,
+                confidence=float(confidence),
+                image_path=filename,
+                detected_time=detect_time
+            )
+            
 
             saved_ids.add(track_id)
 
