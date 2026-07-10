@@ -53,6 +53,10 @@ while True:
     
     start_time = time.time()
     ret, frame = cap.read()
+
+    # Remove it if need for CCTV (dont flip it)
+    frame = cv2.flip(frame, 1)
+    
     if not ret:
         print("Failed to capture frame")
         break
