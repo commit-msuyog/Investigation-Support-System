@@ -1,0 +1,16 @@
+import sqlite3
+
+conn = sqlite3.connect("detections.db")
+cursor = conn.cursor()
+
+cursor.execute("SELECT COUNT(*) FROM detections")
+print("Total rows:", cursor.fetchone()[0])
+
+cursor.execute("SELECT * FROM detections")
+
+rows = cursor.fetchall()
+
+for row in rows:
+    print(row)
+
+conn.close()
