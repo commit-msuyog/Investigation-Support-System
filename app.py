@@ -16,24 +16,33 @@ model.to("cuda")
 known_encodings = []
 known_names = []
 
+# Manually Uploading 
 
-image1 = face_recognition.load_image_file(
-    "known_faces/suyog.jpeg"
+known_faces_folder = "known_faces"
+
+face_images = os.listdir(known_faces_folder)
+
+for image_name in face_images:
+    if not image_name.lower().endswith((".jpg", ".jpeg", ".png")):
+        continue
+    
+    image_path = os.path.join(
+    known_faces_folder,
+    image_name
 )
 
-encoding1 = face_recognition.face_encodings(image1)[0]
-known_encodings.append(encoding1)
-known_names.append("Suyog")
+    image = face_recognition.load_image_file(image_path)
 
+    encodings = face_recognition.face_encodings(image)
+    known_encodings.append(encodings[0])
 
+    name = os.path.splitext(image_name)[0]
+    known_names.append(name)
 
-image2 = face_recognition.load_image_file(
-    "known_faces/shruti.jpeg"
-)
+    if len(encodings) == 0:
+        print(f"No face found in {image_name}")
+        continue
 
-encoding2 = face_recognition.face_encodings(image2)[0]
-known_encodings.append(encoding2)
-known_names.append("Shruti")
 
 # Open webcam
 cap = cv2.VideoCapture(0)
