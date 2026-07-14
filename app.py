@@ -251,7 +251,7 @@ while True:
         1,
         (255, 0, 0),
         2
-    )
+    ) 
 
     cv2.imshow("Investigation Support System", frame)
 
