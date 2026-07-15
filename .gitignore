@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 detections/
 known_faces/
+detections.db
