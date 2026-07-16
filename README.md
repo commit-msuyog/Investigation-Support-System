@@ -54,7 +54,22 @@ The dashboard just queries `detections.db` and reads from `detections/` — no l
 | **Analytics** | Known vs. unknown breakdown, top detected people, detections-over-time trend |
 | **Register Person** | Upload a face + name to add someone to `known_faces/` (engine restart required to pick it up) |
 
-Screenshots go here once I have decent ones to show — right now the app looks better in person than in a placeholder image.
+### Screenshots
+
+**Dashboard**
+![Dashboard](assets/dashboard.png)
+
+**Detection History**
+![Detection History](assets/history.png)
+
+**Evidence Gallery**
+![Evidence Gallery](assets/evidence-gallery.png)
+
+**Analytics**
+![Analytics](assets/analytics.png)
+
+**Register Person**
+![Register Person](assets/register-person.png)
 
 ---
 
@@ -86,6 +101,7 @@ Investigation-Support-System/
 ├── known_faces/                # registered face images
 ├── detections/                 # captured evidence snapshots
 ├── models/                     # YOLOv8 weights
+├── assets/                     # README screenshots
 │
 ├── pages/
 │   ├── Detection_History.py
@@ -103,7 +119,7 @@ Investigation-Support-System/
 ## Setup
 
 ```bash
-git clone <https://github.com/commit-msuyog/Investigation-Support-System.git>
+git clone https://github.com/commit-msuyog/Investigation-Support-System.git
 cd Investigation-Support-System
 
 python -m venv venv
@@ -160,7 +176,7 @@ Open to PRs and issues if you find bugs or want to extend it. Fork, branch, PR �
 
 ## License
 
-No license yet — treat it as source-available for now. Will add MIT if/when I open it up properly.
+MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
