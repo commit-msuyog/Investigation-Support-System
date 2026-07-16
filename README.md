@@ -119,7 +119,7 @@ Investigation-Support-System/
 ## Setup
 
 ```bash
-git clone https://github.com/commit-msuyog/Investigation-Support-System.git
+git clone <https://github.com/commit-msuyog/Investigation-Support-System.git>
 cd Investigation-Support-System
 
 python -m venv venv
@@ -182,7 +182,7 @@ MIT — see [LICENSE](LICENSE) for details.
 
 ## About
 
-**Suyog Verma** — Machine Learning Engineer, mostly working in computer vision and applied ML.
+**Suyog Verma**
 
 - LinkedIn: [linkedin.com/in/suyog01](https://www.linkedin.com/in/suyog01/)
 - GitHub: [github.com/commit-msuyog](https://github.com/commit-msuyog)
