@@ -5,3 +5,4 @@ __pycache__/
 detections/
 known_faces/
 detections.db
+*.db
