@@ -5,9 +5,16 @@ from ultralytics import YOLO
 import face_recognition
 
 from database import save_detection
+from identity import IdentityManager
+
+FACE_EVERY_N_FRAMES = 5    # try face recognition every 5th frame
+MIN_FACE_SIZE = 40         # ignore faces smaller than 40 px
+MIN_VISIBLE_SEC = 2        # person must be visible 2 sec before logging
+REENTRY_GAP_SEC = 300      # gone for 5 min, then back = logged again (same ID)
+DEBUG = True               # prints why face was not found (make False when working)
 
 # Load YOLO model with GPU
-model = YOLO("models\yolov8n.pt")
+model = YOLO("models/yolov8n.pt")
 model.to("cuda")
 
 
@@ -27,21 +34,28 @@ for image_name in face_images:
         continue
     
     image_path = os.path.join(
-    known_faces_folder,
-    image_name
-)
+        known_faces_folder,
+        image_name
+    )
 
     image = face_recognition.load_image_file(image_path)
 
     encodings = face_recognition.face_encodings(image)
+
+    # skip the image if no face found (check before using encodings[0])
+    if len(encodings) == 0:
+        print(f"No face found in {image_name}")
+        continue
+
     known_encodings.append(encodings[0])
 
     name = os.path.splitext(image_name)[0]
     known_names.append(name)
 
-    if len(encodings) == 0:
-        print(f"No face found in {image_name}")
-        continue
+
+# Permanent ID maker (track id -> person id)
+ids = IdentityManager(known_names, known_encodings)
+print(f"[identity] ready with {len(known_names)} known face(s)")
 
 
 # Open webcam
@@ -52,26 +66,70 @@ cap = cv2.VideoCapture(0)
 if not os.path.exists("detections"):
     os.makedirs("detections")
 
-first_seen = {}
-saved_ids = set()
-recognized_tracks = {} 
+face_boxes = {}          # track_id -> face position (for pink box)
+last_seen_person = {}    # person_id -> last time we saw him
+visit_start = {}         # person_id -> when his current visit started
+visit_logged = set()     # person_ids already saved in current visit
+frame_count = 0
+
+
+def find_face(frame, x1, y1, x2, y2):
+
+    crop = frame[y1:y2, x1:x2]
+
+    if crop.size == 0:
+        return None
+
+    rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+
+    locations = face_recognition.face_locations(
+        rgb,
+        model="hog"
+    )
+
+    if len(locations) == 0:
+        if DEBUG:
+            print(f"[debug] no face found in person box {x2 - x1}x{y2 - y1}")
+        return None
+
+    top, right, bottom, left = locations[0]
+
+    # too small face = bad fingerprint, skip it
+    if (bottom - top) < MIN_FACE_SIZE or (right - left) < MIN_FACE_SIZE:
+        if DEBUG:
+            print(f"[debug] face too small: {right - left}x{bottom - top} px")
+        return None
+
+    encodings = face_recognition.face_encodings(
+        rgb,
+        [locations[0]]
+    )
+
+    if len(encodings) == 0:
+        if DEBUG:
+            print("[debug] face found but encoding failed")
+        return None
+
+    return locations[0], encodings[0]
 
 
 while True:
 
     
     start_time = time.time()
+    frame_count += 1
+
     ret, frame = cap.read()
 
-    # Remove it if need for CCTV (dont flip it)
-    frame = cv2.flip(frame, 1)
-    
     if not ret:
         print("Failed to capture frame")
         break
 
+    # Remove it if need for CCTV (dont flip it)
+    frame = cv2.flip(frame, 1)
 
-    
+    frame_h, frame_w = frame.shape[:2]
+
     
     results = model.track(
         frame,
@@ -95,48 +153,35 @@ while True:
 
         x1, y1, x2, y2 = map(int, box.xyxy[0])
 
+        # keep box inside the frame
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(frame_w, x2), min(frame_h, y2)
+
+        if x2 <= x1 or y2 <= y1:
+            continue
+
         person_count += 1
 
-        # Face Recognition (only once)
-        
-        if track_id not in recognized_tracks:
+        # Face Recognition (only until person is identified)
 
-            person_crop = frame[y1:y2, x1:x2]
+        person_id = ids.get_identity(track_id)
 
-            rgb_crop = cv2.cvtColor(
-                person_crop,
-                cv2.COLOR_BGR2RGB
-            )
+        if person_id is None and frame_count % FACE_EVERY_N_FRAMES == 0:
 
-            face_locations = face_recognition.face_locations(
-                rgb_crop,
-                model="hog"
-            )
+            found = find_face(frame, x1, y1, x2, y2)
 
-            if len(face_locations) > 0:
+            if found is not None:
 
-                face_encodings = face_recognition.face_encodings(
-                    rgb_crop,
-                    face_locations
+                face_location, face_encoding = found
+
+                person_id, is_known, is_new = ids.resolve(
+                    track_id,
+                    face_encoding
                 )
 
-                matches = face_recognition.compare_faces(
-                    known_encodings,
-                    face_encodings[0]
-                )
+                face_boxes[track_id] = face_location
 
-                name = "Unknown"
-
-                if True in matches:
-                    match_index = matches.index(True)
-                    name = known_names[match_index]
-
-                recognized_tracks[track_id] = {
-                    "name": name,
-                    "face": face_locations[0]
-                }
-
-                print(f"Track {track_id}: {name}")
+                print(f"Track {track_id}: {person_id}")
 
        
         # Draw Person Box
@@ -149,10 +194,15 @@ while True:
             2
         )
 
+        label = f"Track {track_id} | {confidence:.2f}"
+
+        if person_id is None:
+            label += " | identifying..."
+
         cv2.putText(
             frame,
-            f"ID:{track_id} | {confidence:.2f}",
-            (x1, y1 - 10),
+            label,
+            (x1, max(15, y1 - 10)),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (0,255,0),
@@ -162,13 +212,9 @@ while True:
 
         # Draw Face Box (cached)
 
-        if track_id in recognized_tracks:
+        if person_id is not None and track_id in face_boxes:
 
-            info = recognized_tracks[track_id]
-
-            name = info["name"]
-
-            top, right, bottom, left = info["face"]
+            top, right, bottom, left = face_boxes[track_id]
 
             cv2.rectangle(
                 frame,
@@ -180,52 +226,62 @@ while True:
 
             cv2.putText(
                 frame,
-                name,
-                (x1 + left, y1 + top - 10),
+                person_id,
+                (x1 + left, max(15, y1 + top - 10)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.7,
                 (255,0,255),
                 2
             )
 
-        # Save Screenshot with timestamp
+        # Save Screenshot with timestamp (once per visit of a person)
 
-        current_time = time.time()
+        if person_id is not None:
 
-        if track_id not in first_seen:
-            first_seen[track_id] = current_time
+            current_time = time.time()
 
-        if (
-            current_time - first_seen[track_id] >= 2
-            and track_id not in saved_ids
-        ):
-            file_timestamp = time.strftime('%Y%m%d_%H%M%S')
-            filename = f"detections/person_{track_id}_{file_timestamp}.jpg"
+            previous = last_seen_person.get(person_id)
+            last_seen_person[person_id] = current_time
+
+            # new visit starts if never seen before or gone for long time
+            if previous is None or current_time - previous >= REENTRY_GAP_SEC:
+                visit_start[person_id] = current_time
+                visit_logged.discard(person_id)
+
+            if (
+                current_time - visit_start[person_id] >= MIN_VISIBLE_SEC
+                and person_id not in visit_logged
+            ):
+                file_timestamp = time.strftime('%Y%m%d_%H%M%S')
+                filename = f"detections/person_{person_id}_{file_timestamp}.jpg"
 
 
-            detect_time = time.strftime('%Y%m%d_%H%M%S')
+                detect_time = time.strftime('%Y%m%d_%H%M%S')
 
-            cv2.imwrite(
-                filename,
-                frame[y1:y2, x1:x2]
-            )
-            if track_id in recognized_tracks:
-                detected_name = recognized_tracks[track_id]["name"]
-            else:
-                detected_name = "Unknown"
+                cv2.imwrite(
+                    filename,
+                    frame[y1:y2, x1:x2]
+                )
 
-            save_detection(
-                track_id=track_id,
-                name=detected_name,
-                confidence=float(confidence),
-                image_path=filename,
-                detected_time=detect_time
-            )
-            
+                # unknown people are saved as "Unknown" so dashboard filter works
+                if person_id in ids.known:
+                    detected_name = person_id
+                else:
+                    detected_name = "Unknown"
 
-            saved_ids.add(track_id)
+                save_detection(
+                    track_id=track_id,
+                    name=detected_name,
+                    confidence=float(confidence),
+                    image_path=filename,
+                    detected_time=detect_time,
+                    person_id=person_id
+                )
+                
 
-            print("Saved:", filename)
+                visit_logged.add(person_id)
+
+                print("Saved:", filename)
 
 
     end_time = time.time()

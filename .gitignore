@@ -6,3 +6,4 @@ detections/
 known_faces/
 detections.db
 *.db
+*.pkl
